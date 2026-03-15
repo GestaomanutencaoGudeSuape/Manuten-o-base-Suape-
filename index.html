@@ -1,0 +1,184 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestor de Manutenção Naval</title>
+<link rel="manifest" href="manifest.json">
+<style>
+body{font-family:Arial;margin:20px;background:#0b3d5c;color:white}
+h1{margin-bottom:5px}
+.card{background:#114e73;padding:15px;border-radius:10px;margin-bottom:15px}
+input,select,button{padding:8px;margin:4px;border-radius:6px;border:none}
+button{background:#00c2ff;color:black;font-weight:bold}
+.warn{color:#ffd166}
+.ok{color:#90ee90}
+table{width:100%;margin-top:10px}
+td{padding:4px}
+small{color:#cde}
+</style>
+</head>
+
+<body>
+
+<h1>⚓ Gestor de Manutenção Naval</h1>
+<small>Controle de motores e manutenção de embarcações</small>
+
+<div class="card">
+<h3>Adicionar Embarcação</h3>
+<input id="boatName" placeholder="Nome da embarcação">
+<input id="boatHours" type="number" placeholder="Horas atuais do motor">
+<button onclick="addBoat()">Cadastrar</button>
+</div>
+
+<div class="card">
+<h3>Adicionar Manutenção</h3>
+<select id="boatSelect"></select>
+<input id="taskName" placeholder="Ex: Troca óleo motor">
+<input id="intervalHours" type="number" placeholder="Intervalo (horas)">
+<button onclick="addTask()">Adicionar</button>
+</div>
+
+<div id="boats"></div>
+
+<script>
+
+let boats = JSON.parse(localStorage.getItem("boats_v2") || "[]");
+
+function save(){
+localStorage.setItem("boats_v2", JSON.stringify(boats));
+render();
+}
+
+function addBoat(){
+let name=document.getElementById("boatName").value;
+let hours=Number(document.getElementById("boatHours").value);
+
+boats.push({
+name:name,
+hours:hours,
+tasks:[],
+history:[]
+});
+
+save();
+}
+
+function addTask(){
+
+let boatIndex=document.getElementById("boatSelect").value;
+
+boats[boatIndex].tasks.push({
+name:document.getElementById("taskName").value,
+interval:Number(document.getElementById("intervalHours").value),
+last:boats[boatIndex].hours
+});
+
+save();
+}
+
+function addHours(i){
+
+boats[i].hours+=1;
+
+checkAlerts(i);
+
+save();
+}
+
+function checkAlerts(i){
+
+boats[i].tasks.forEach(t=>{
+
+let next=t.last+t.interval;
+
+if(next - boats[i].hours <= 3){
+
+alert("⚠ Manutenção próxima: "+t.name+" na embarcação "+boats[i].name);
+
+}
+
+});
+
+}
+
+function completeTask(boatIndex,taskIndex){
+
+let boat=boats[boatIndex];
+let task=boat.tasks[taskIndex];
+
+task.last=boat.hours;
+
+boat.history.push({
+task:task.name,
+hours:boat.hours,
+date:new Date().toLocaleDateString()
+});
+
+save();
+
+}
+
+function render(){
+
+let boatsDiv=document.getElementById("boats");
+boatsDiv.innerHTML="";
+
+let select=document.getElementById("boatSelect");
+select.innerHTML="";
+
+boats.forEach((b,i)=>{
+
+select.innerHTML+=`<option value="${i}">${b.name}</option>`;
+
+let html=`<div class="card">
+<h3>${b.name}</h3>
+Motor: ${b.hours} horas
+<br>
+<button onclick="addHours(${i})">+1 hora de uso</button>
+
+<h4>Manutenções</h4>
+<table>`;
+
+b.tasks.forEach((t,ti)=>{
+
+let next=t.last+t.interval;
+let warn=(next-b.hours<=5)?"warn":"ok";
+
+html+=`<tr>
+<td class="${warn}">${t.name}</td>
+<td>Próx: ${next}h</td>
+<td><button onclick="completeTask(${i},${ti})">Feita</button></td>
+</tr>`;
+
+});
+
+html+=`</table>`;
+
+if(b.history.length>0){
+
+html+=`<h4>Histórico</h4>`;
+
+b.history.slice(-5).forEach(h=>{
+
+html+=`<small>${h.date} — ${h.task} (${h.hours}h)</small><br>`;
+
+});
+
+}
+
+html+=`</div>`;
+
+boatsDiv.innerHTML+=html;
+
+});
+
+}
+
+render();
+
+</script>
+
+</body>
+</html>
